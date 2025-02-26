@@ -6,53 +6,77 @@ const cors = require('cors');
 const app = express();
 
 // Middleware
-app.use(bodyParser.json()); // For parsing application/json
-app.use(cors()); // Enable CORS
+app.use(bodyParser.json());
+app.use(cors());
 
-// PostgreSQL connections
-
-// Primary DB for write operations (form submissions)
-const primaryPool = new Pool({
-    host: process.env.DB_HOST,  // Primary RDS DB
-    user: process.env.DB_USER,
-    port: process.env.DB_PORT,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+// PostgreSQL connection
+const pool = new Pool({
+    host: process.env.DB_HOST || 'postgres',
+    user: process.env.DB_USER || 'admin',
+    port: process.env.DB_PORT || 5432,
+    password: process.env.DB_PASSWORD || 'admin1234',
+    database: process.env.DB_NAME || 'survey'
 });
 
-// Read Replica DB for read operations (search queries)
-const replicaPool = new Pool({
-    host: process.env.READ_REPLICA_HOST,  // Read Replica DB
-    user: process.env.DB_USER,
-    port: process.env.DB_PORT,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
-});
-
-// Ensure primary DB connection
-primaryPool.connect((err) => {
+pool.connect((err) => {
     if (err) {
-        console.error('Failed to connect to the primary database:', err);
+        console.error('Failed to connect to the database:', err);
         process.exit(1);
     }
-    console.log('Connected to primary database');
+    console.log('Connected to database');
+
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS "users" (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            age INT NOT NULL,
+            mobile VARCHAR(15) NOT NULL UNIQUE,
+            nationality VARCHAR(50),
+            language VARCHAR(50),
+            amount VARCHAR(10),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`;
+
+    pool.query(createTableQuery, (err, result) => {
+        if (err) {
+            console.error('Error creating table:', err);
+            process.exit(1);
+        }
+        console.log('Table "users" created or already exists');
+    });
 });
 
-// Route to handle form submissions (writes to primary DB)
-app.post('/submit', (req, res) => {
-    const { name, age, mobile, nationality, language, pin } = req.body;
+// Route to check if a mobile number already exists
+app.get('/checkMobile', (req, res) => {
+    const mobile = req.query.mobile;
+    const checkMobileQuery = 'SELECT 1 FROM users WHERE mobile = $1';
 
-    // Basic validation
-    if (!name || !age || !mobile || !nationality || !language || !pin) {
+    pool.query(checkMobileQuery, [mobile], (err, result) => {
+        if (err) {
+            console.error('Error checking mobile number:', err);
+            return res.status(500).json({ message: 'Error checking mobile number.' });
+        }
+        if (result.rows.length > 0) {
+            return res.json({ exists: true });
+        } else {
+            return res.json({ exists: false });
+        }
+    });
+});
+
+// Route to handle form submissions
+app.post('/submit', (req, res) => {
+    const { name, age, mobile, nationality, language, amount } = req.body;
+
+    if (!name || !age || !mobile || !nationality || !language || !amount) {
         return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    // SQL query to insert data into the user table in primary DB
     const insertQuery = `
-    INSERT INTO "users" (name, age, mobile, nationality, language, pin)
-    VALUES ($1, $2, $3, $4, $5, $6)`;
+        INSERT INTO "users" (name, age, mobile, nationality, language, amount)
+        VALUES ($1, $2, $3, $4, $5, $6)`;
 
-    primaryPool.query(insertQuery, [name, age, mobile, nationality, language, pin], (err, result) => {
+    pool.query(insertQuery, [name, age, mobile, nationality, language, amount], (err, result) => {
         if (err) {
             console.error('Error inserting data:', err);
             return res.status(500).json({ message: 'Error inserting data.' });
@@ -61,25 +85,37 @@ app.post('/submit', (req, res) => {
     });
 });
 
-// Route to handle search queries (reads from read replica DB)
+// Search endpoint
 app.get('/search', (req, res) => {
     const query = req.query.query;
-
-    // SQL query to fetch data from read replica DB
     const sql = 'SELECT * FROM users WHERE name = $1 OR mobile = $2';
 
-    replicaPool.query(sql, [query, query], (err, results) => {
+    pool.query(sql, [query, query], (err, results) => {
         if (err) {
             console.error('Error executing query:', err.stack);
             return res.status(500).json({ message: 'Internal Server Error' });
         }
         if (results.rows.length > 0) {
-            res.json(results.rows[0]);  // Return the first matching user
+            res.json(results.rows[0]);
         } else {
             res.status(404).json({ message: 'User not found' });
         }
     });
 });
+
+// Endpoint to get all users
+app.get('/allUsers', (req, res) => {
+    const getAllUsersQuery = 'SELECT * FROM users';
+
+    pool.query(getAllUsersQuery, (err, result) => {
+        if (err) {
+            console.error('Error fetching all users:', err);
+            return res.status(500).json({ message: 'Error fetching users.' });
+        }
+        res.json(result.rows); // Send all rows as JSON
+    });
+});
+
 
 // Custom error handler middleware
 app.use((err, req, res, next) => {

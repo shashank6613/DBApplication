@@ -10,12 +10,19 @@
 <body class="search-page">
     <div class="container search-container">
         <h1 class="search-title">Search User</h1>
-        <form class="search-form" onsubmit="searchUser(event)">
+        <form class="search-form" onsubmit="searchUser(event)" autocomplete="off"  >
             <label class="search-label" for="search">Search by Name or Mobile:</label>
             <input type="text" id="search" name="search" class="search-input" required>
             <button type="submit" class="search-button">Search</button>
         </form>
+
+        <!-- User details will be displayed here -->
         <div id="user-details"></div>
+
+        <!-- Error or no results will be shown here -->
+        <div id="search-error-message" style="color: red; margin-top: 10px;"></div>
+
+        <button type="button"  class="back-to-form-button" onclick="window.location.href='index.html'">Back To Form</button>
     </div>
 </body>
 </html>

@@ -7,16 +7,16 @@ services:
       dockerfile: Dockerfile
     image: backend:latest
     ports:
-      - "8081:8081"
+      - "8080:8080"
     environment:
-      DB_HOST: ${DB_HOST}  # Primary DB Host (AWS RDS Primary DB)
+      DB_HOST: postgres
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      DB_PORT: ${DB_PORT}
-      READ_REPLICA_HOST: ${READ_REPLICA_HOST}  # Read Replica DB Host
+      DB_PORT: 5432
     depends_on:
       - frontend
+      - postgres
     networks:
       - app-network
 
@@ -30,6 +30,23 @@ services:
     networks:
       - app-network
 
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  postgres-data:

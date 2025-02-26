@@ -10,7 +10,7 @@
     <div class="container">
         <div>
             <h1>User Information</h1>
-            <form onsubmit="submitForm(event)">
+            <form onsubmit="submitForm(event)" autocomplete="off"  >
                 <label for="name">Name:</label>
                 <input type="text" id="name" name="name" required>
                 <label for="age">Age:</label>
@@ -21,14 +21,20 @@
                 <input type="text" id="nationality" name="nationality" required>
                 <label for="language">Language:</label>
                 <input type="text" id="language" name="language" required>
-                <label for="pin">PIN:</label>
-                <input type="text" id="pin" name="pin" required>
+                <label for="amount">Amount:</label>
+                <input type="text" id="amount" name="amount" required>
                 <div class="button-group">
                     <input type="submit" value="Submit">
                     <input type="reset" value="Reset">
-                    <button type="button" onclick="window.location.href='search.html'">Search User</button>
+                    <button type="button" onclick="openSearchPage()">Search User</button>
+                    <button type="button" onclick="displayAllUsers()">Display All Users</button>
                 </div>
             </form>
+
+            <!-- Add an error message section -->
+            <div id="error-message" style="color: red; margin-top: 10px;"></div>
+            <!-- Add a section for form submission success -->
+            <div id="success-message" style="color: green; margin-top: 10px;"></div>
         </div>
     </div>
     <script src="script.js"></script>
